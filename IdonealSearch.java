@@ -1,180 +1,92 @@
+import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
+/* 
+   The is a program to check the numbers up to a desired N for idoneality.
+   That is, whether or not they are one of Euler's idoneal numbers.
+   
+   Made by William Easton, December 2021
+*/
 public class IdonealSearch {
 
-    public static int A = -1;
-    public static int B = -1;
-    public static final int N = 10000000;
-    public static final Integer[][] factorsList = new Integer[0][];//new Integer[N * 4][];
-    private static final long[] squares = new long[(int) Math.sqrt(N)];
+    public static final long N = 10000000000L;  // the number to check up to
 
     public static void main(String[] args) {
         long start = System.currentTimeMillis();
 
-        for (int i = 0; i < squares.length; i++)
-            squares[i] = i*i;
-
-        int numIdoneals = 0;
-        for (int n = 1; n < N; n++) {
-            int maxK = (int)Math.sqrt(n * 3);
-            boolean idoneal = true;
-            boolean even = n % 2 == 0;
-            for (int k = 1; k <= maxK; k += even ? 2 : 1) {
-                //int gcd = gcd1(n, k, 0);
-                //while (gcd == -1)
-                //    gcd = gcd1(A, B, 0);
-                if (gcd2(n, k) == 1) {
-                    if (!meetsParams(n + k * k)) {
-                        idoneal = false;
-                        break;
-                    }
-                }
-            }
-            if (idoneal) {
+        long numIdoneals = 0;
+        for (long n = 1; n < N; n++) {
+            if (checkN(n)) {
                 System.out.println(n);
                 numIdoneals++;
             }
         }
-        System.out.println("\nNum of idoneals found: " + numIdoneals);
-        //System.out.println(new Date());
-        System.out.println((System.currentTimeMillis() - start) / 1000 + " seconds passed for n < " + N);
+        System.out.println();
+        System.out.println(numIdoneals + " idoneals found up to " + NumberFormat.getInstance().format(N) +
+                           " in " + (System.currentTimeMillis() - start) / 1000 + " seconds.");
+    }
+    
+    // Checks if n is idoneal using n + k^2 method
+    public static boolean checkN(long n) {
+        long maxK = (long)Math.sqrt(n * 3);
+        boolean even = n % 2 == 0;
+        for (long k = 1; k <= maxK; k += even ? 2 : 1)
+            if (gcd(k, n) == 1)
+                if (!meetsParams(n + k * k))
+                    return false;
+        return true;
     }
 
-    public static int[] getFactorsArray(int n) {
-        int sqrt = (int)Math.sqrt(n);
-        int[] factors = new int[sqrt*2];
-        int numFactors = 0;
-        for (double i = 2; i <= sqrt; i++) {
-            double div = n / i;
-            if (isInt(div)) {
-                factors[numFactors] = (int)i;
-                factors[numFactors+1] = (int)div;
-                numFactors+=2;
-            }
-        }
-        factors[numFactors] = n;
-        return Arrays.copyOf(factors, numFactors+1);
-    }
-
-    public static ArrayList<Integer> getFactors(int n) {
-        ArrayList<Integer> factors = new ArrayList<>();
-        for (double i = 2; i <= Math.sqrt(n); i++) {
-            double div = n / i;
-            if (isInt(div)) {
-                factors.add((int)i);
-                factors.add((int)div);
-            }
-        }
-        factors.add(n);
-        return factors;
-    }
-
-    public static boolean meetsParams(int test) {
+    // Checks if a certain value is prime, twice a prime, a prime squared, or a power of 2
+    public static boolean meetsParams(long test) {
         return (isPrime(test) ||
                 isPrime(test / 2.0) ||
                 isInt(Math.log(test) / Math.log(2)) ||
                 isPrime(Math.sqrt(test)));
     }
 
-    public static boolean isInt(double in) {
-        return in == (int)in;
-    }
-
-    public static boolean isPrime(double n) {
-        return isInt(n) && getFactors((int)n).size() == 1;
-    }
-
-    public static int gcd2(int a, int b) {
-        ArrayList<Integer> coFactors = new ArrayList<>();
-        for (int i : getFactors(a))
-            for (int j : getFactors(b))
-                if (i == j)
-                    coFactors.add(i);
-        if (coFactors.size() == 0)
-            return 1;
-        return Collections.max(coFactors);
-    }
-
-    public static int intSqrt(double d) {
-        for (int i = 0; i < squares.length; i++)
-            if (squares[i] > d)
-                return i-1;
-        return squares.length;
-    }
-
-    public static Integer[] getFactorsCache(int n) {
-        if (factorsList[n] == null) {
-            ArrayList<Integer> factors = new ArrayList<>();
-            for (double i = 2; i <= Math.sqrt(n); i++) {
-                double div = n / i;
-                if (isInt(div)) {
-                    factors.add((int) i);
-                    factors.add((int) div);
-                }
-            }
-            factors.add(n);
-            factorsList[n] = factors.toArray(new Integer[0]);
-        }
-        return factorsList[n];
-    }
-
-    public static void isIdonealABC(int n) {
-        for(int a = 1; a <= n; a++)
-            for(int b = a + 1; b <= n; b++)
-                for(int c = b + 1; c <= n; c++)
-                    if (a * b + b * c + c * a == n)
-                        System.out.println(a + " " + b + " " + c);
-    }
-
-    public static boolean isPrime1(double n) {
-        if (!isInt(n)) return false;
-
-        // Corner case
-        if (n <= 1)
+    // Checks if n is prime via 6k +/- 1 technique
+    public static boolean isPrime(long n) {
+        if (n == 2 || n== 3)
+            return true;
+        if (n % 2 == 0 || n % 3 == 0)
             return false;
-
-        // Check from 2 to n-1
-        for (int i = 2; i < Math.sqrt(n); i++)
-            if (n % i == 0)
+        for (long i = 5; i <= Math.sqrt(n); i += 6)
+            if (n % (i + 2) == 0 || n % i == 0)
                 return false;
-
         return true;
     }
 
-    public static int gcd(int a, int b) {
-        if (a == b) return a;
-        for (double i = Math.floor(Math.max(a, b) / 2.0); i > 0; i--) {
-            double aDiv = a / i;
-            double bDiv = b / i;
-            if (isInt(aDiv) && isInt(bDiv)) {
-                return (int) i;
-            }
-        }
-        return 1;
+    // Returns the greatest common denominator of two numbers
+    public static long gcd(long a, long b) {
+        long max = 1;
+        for (long i : getFactors(a))
+            if (i > max && b % i == 0)
+                max = i;
+        return max;
     }
 
-    public static int gcd1(int a, int b, int num) {
-        num++;
-        if (num >= 1000) {
-            A = a;
-            B = b;
-            return -1;
+    // Returns all the factors except 1 of the input
+    public static ArrayList<Long> getFactors(long n) {
+        ArrayList<Long> factors = new ArrayList<>();
+        for (double i = 2; i <= Math.sqrt(n); i++) {
+            double div = n / i;
+            if (isInt(div)) {
+                factors.add((long)i);
+                factors.add((long)div);
+            }
         }
-        // Everything divides 0
-        if (a == 0 || b == 0)
-            return 0;
+        factors.add(n);
+        return factors;
+    }
 
-        // base case
-        if (a == b)
-            return a;
+    // Checks if n is an integer and prime
+    public static boolean isPrime(double n) {
+        return isInt(n) && isPrime((long)n);
+    }
 
-        // a is greater
-        if (a > b)
-            return gcd1(a-b, b, num);
-
-        return gcd1(a, b-a, num);
+    // Checks if a number is an integer
+    public static boolean isInt(double in) {
+        return in == (int)in;
     }
 }
