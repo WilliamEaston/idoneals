@@ -1,15 +1,17 @@
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.math.BigInteger;
 
 /* 
    This is a program to check the numbers up to a desired N for idoneality.
    That is, whether or not they are one of Euler's idoneal numbers.
+   So far, it has checked up to 100 billion.
    
-   Made by William Easton, December 2021
+   Made by William Easton, December 2021 - January 2022
 */
 public class IdonealSearch {
 
-    public static final long N = 10000000000L;  // the number to check up to
+    public static final long N = 100000000000L;  // the number to check up to
     public static final double ln2 = Math.log(2);
 
     public static void main(String[] args) {
@@ -52,22 +54,41 @@ public class IdonealSearch {
 
     // Checks if a certain value is prime, twice a prime, a prime squared, or a power of 2
     public static boolean meetsParams(long test) {
-        return (isPrime(test) ||
-                isPrime(test / 2.0) ||
-                isInt(Math.log(test) / ln2) ||
-                isPrime(Math.sqrt(test)));
+        return isPrime(test) ||
+               isPrime(test / 2.0) ||
+               isPrime(Math.sqrt(test)) ||
+               isInt(Math.log(test) / ln2);
     }
 
-    // Checks if n is prime via 6k +/- 1 technique
+    // Checks if n is prime via deterministic Miller test
     public static boolean isPrime(long n) {
-        if (n == 2 || n == 3)
-            return true;
-        if (n % 2 == 0 || n % 3 == 0)
+        if (n == 2) return true;
+        if (n % 2 == 0 || n == 1) return false;
+        // n = d*2^r + 1
+        long r = Long.numberOfTrailingZeros(n-1);
+        long d = (n - 1) / (long)Math.pow(2, r);
+        // Sufficient a's for n < 2,152,302,898,747
+        long[] aValues = new long[] {2, 3, 5, 7, 11};
+        long maxA = (long)Math.min(n-2, Math.floor(2*Math.pow(Math.log(n), 2)));
+        WitnessLoop:
+        for (long a : aValues) {
+            if (a > maxA) break;
+            long x = modPow(a, d, n);
+            if (x == 1 || x == n - 1)
+                continue WitnessLoop;
+            for (long i = 0; i < r - 1; i++) {
+                x = modPow(x, 2, n);
+                if (x == n - 1)
+                    continue WitnessLoop;
+            }
             return false;
-        for (long i = 5; i <= Math.sqrt(n); i += 6)
-            if (n % i == 0 || n % (i + 2) == 0)
-                return false;
+        }
         return true;
+    }
+
+    // Calculates base^power % mod for especially large numbers that would overflow longs
+    public static long modPow(long base, long power, long mod) {
+        return new BigInteger(base + "").modPow(new BigInteger(power + ""), new BigInteger(mod + "")).longValue();
     }
 
     // Returns the greatest common denominator of two numbers
