@@ -1,22 +1,20 @@
 import java.math.BigInteger;
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 
 /*
    This is a program to check the numbers up to a desired N for idoneality.
    That is, whether they are one of Euler's idoneal numbers.
-   So far, it has checked up to 100 billion.
+   So far, it has checked up to 1 trillion.
 
    Made by William Easton, December 2021 - January 2022
 */
 public class IdonealSearch {
 
-    public static final long N = 100000000000L;  // the number to check up to
+    public static final long N = 10000000000000L;  // the number to check up to
 
-    public static final double ln2 = Math.log(2);
     public static final double sqrtMaxLong = Math.sqrt(Long.MAX_VALUE);
-    public static long[] witnesses = getWitnesses();
+    public static final long[] witnesses = getWitnesses();
 
     // main w/ coverage checks
     public static void main(String[] args) {
@@ -53,7 +51,7 @@ public class IdonealSearch {
         long maxK = (long)Math.sqrt(n * 3);
         boolean even = n % 2 == 0;
         for (long k = 1; k <= maxK; k += even ? 2 : 1)
-            if (gcd(k, n) == 1 && !meetsParams(n + k * k))
+            if (areCoprime(k, n) && !meetsParams(n + k * k))
                 return false;
         return true;
     }
@@ -63,7 +61,7 @@ public class IdonealSearch {
         return isPrime(test) ||
                isPrime(test / 2.0) ||
                isPrime(Math.sqrt(test)) ||
-               isInt(Math.log(test) / ln2);
+               Long.bitCount(test) == 1;
     }
 
     // Checks if n is prime via deterministic Miller test
@@ -79,11 +77,11 @@ public class IdonealSearch {
         for (long witness : witnesses) {
             if (witness > n - 2)
                 break;
-            long x = modPow(witness, d, n);   // check b^d = 1 mod n
+            long x = modPow(witness, d, n);   // check if b^d = 1 mod n
             if (x == 1 || x == n - 1)
-                continue WitnessLoop;
-            for (long i = 1; i < r ; i++) {
-                x = x < sqrtMaxLong ? (x * x) % n : modPow(x, 2, n);    // check b^(d*2^i) = -1 mod n
+                continue;
+            for (long i = 1; i < r; i++) {
+                x = x < sqrtMaxLong ? (x * x) % n : squarePow(x, n);    // check if b^(d*2^i) = -1 mod n
                 if (x == n - 1)
                     continue WitnessLoop;
             }
@@ -92,48 +90,43 @@ public class IdonealSearch {
         return true;
     }
 
-    // Calculates base^power % mod for especially large numbers that would overflow longs
+    // Calculates base^power % mod for numbers where base * 4N < 9 quintillion (Long.MAX_VALUE)
     public static long modPow(long base, long power, long mod) {
-        return BigInteger.valueOf(base).modPow(BigInteger.valueOf(power), BigInteger.valueOf(mod)).longValue();
-    }
-
-    // Returns the greatest common denominator of two numbers
-    public static long gcd(long a, long b) {
-        long max = 1;
-        for (long factor : getFactors(a))
-            if (factor > max && b % factor == 0)
-                max = factor;
-        return max;
-    }
-
-    // Returns all the factors of the input except 1
-    public static ArrayList<Long> getFactors(long n) {
-        ArrayList<Long> factors = new ArrayList<>();
-        for (double i = 2; i <= Math.sqrt(n); i++) {
-            double div = n / i;
-            if (isInt(div)) {
-                factors.add((long)i);
-                factors.add((long)div);
-            }
+        long result = 1;
+        while (power > 0) {
+            if (power % 2 == 1)
+                result = (result * base) % mod;
+            power >>= 1;
+            base = (base * base) % mod;
         }
-        factors.add(n);
-        return factors;
+        return result;
+    }
+
+    // Calculates base^2 % mod for especially large numbers that would overflow longs
+    public static long squarePow(long base, long mod) {
+        return BigInteger.valueOf(base).modPow(BigInteger.TWO, BigInteger.valueOf(mod)).longValue();
+    }
+
+    // Returns whether the two inputs are coprime
+    public static boolean areCoprime(long a, long b) {
+        long t;
+        while (b != 0) {
+            t = b;
+            b = a % b;
+            a = t;
+        }
+        return a == 1;
     }
 
     // Returns the list of sufficient witnesses for all possible primes considering N
     public static long[] getWitnesses() {
-        long[] primes = new long[] {2, 3, 5, 7, 11, 13, 17, 19};
-        long maxPrime = 4*N;
-        int numNeededPrimes;
-             if (maxPrime < 2047L)             numNeededPrimes = 1;
-        else if (maxPrime < 1373653L)          numNeededPrimes = 2;
-        else if (maxPrime < 25326001L)         numNeededPrimes = 3;
-        else if (maxPrime < 3215031751L)       numNeededPrimes = 4;
-        else if (maxPrime < 2152302898747L)    numNeededPrimes = 5;
-        else if (maxPrime < 3474749660383L)    numNeededPrimes = 6;
-        else if (maxPrime < 341550071728321L)  numNeededPrimes = 7;
-        else                                   numNeededPrimes = 8;
-        return Arrays.copyOf(primes, numNeededPrimes);
+        long[] primes = new long[] {2, 3, 5, 7, 11, 13, 17, 19, 23};
+        long maxPrime = 4 * N;
+        long[] upperBounds = new long[] {2047, 1373653L, 25326001L, 3215031751L, 2152302898747L, 3474749660383L, 341550071728321L, 341550071728321L, 3825123056546413051L};
+        for (int i = 0; i < primes.length; i++)
+            if (maxPrime < upperBounds[i])
+                return Arrays.copyOf(primes, i + 1);
+        return primes;
     }
 
     // Checks if n is an integer and prime
