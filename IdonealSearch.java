@@ -5,16 +5,17 @@ import java.util.Arrays;
 /*
    This is a program to check the numbers up to a desired N for idoneality.
    That is, whether they are one of Euler's idoneal numbers.
-   So far, it has checked up to 1 trillion.
+   So far, it has checked up to 35 trillion.
 
-   Made by William Easton, December 2021 - January 2022
+   Made by William Easton, December 2021 - February 2022
 */
 public class IdonealSearch {
 
-    public static final long N = 10000000000000L;  // the number to check up to
+    private static final long N = 10000000000000L;  // the number to check up to
 
-    public static final double sqrtMaxLong = Math.sqrt(Long.MAX_VALUE);
-    public static final long[] witnesses = getWitnesses();
+    private static final double sqrtMaxLong = Math.sqrt(Long.MAX_VALUE);
+    private static final int[] primes = new int[] {2, 3, 5, 7, 11, 13, 17, 19, 23};
+    private static final int[] witnesses = getWitnesses();
 
     // main w/ coverage checks
     public static void main(String[] args) {
@@ -66,23 +67,29 @@ public class IdonealSearch {
 
     // Checks if n is prime via deterministic Miller test
     public static boolean isPrime(long n) {
-        if (n == 2) return true;
-        if (n % 2 == 0 || n == 1) return false;
+        if (n == 1) return true;
+        for (int p : primes) {  // check through some low primes
+            if (n % p == 0) {
+                return n == p;
+            }
+        }
 
         // write n as d*2^r + 1
-        long r = Long.numberOfTrailingZeros(n - 1);
+        int r = Long.numberOfTrailingZeros(n - 1);
         long d = (n - 1) >> r;
 
         WitnessLoop:
-        for (long witness : witnesses) {
+        for (int witness : witnesses) {
             if (witness > n - 2)
                 break;
             long x = modPow(witness, d, n);   // check if b^d = 1 mod n
             if (x == 1 || x == n - 1)
                 continue;
-            for (long i = 1; i < r; i++) {
-                x = x < sqrtMaxLong ? (x * x) % n : squarePow(x, n);    // check if b^(d*2^i) = -1 mod n
-                if (x == n - 1)
+            for (int i = 1; i < r; i++) {
+                x = x < sqrtMaxLong
+                        ? (x * x) % n
+                        : squarePow(x, n);
+                if (x == n - 1)             // check if b^(d*2^i) = -1 mod n
                     continue WitnessLoop;
             }
             return false;
@@ -90,21 +97,20 @@ public class IdonealSearch {
         return true;
     }
 
-    // Calculates base^power % mod for numbers where base * 4N < 9 quintillion (Long.MAX_VALUE)
+    // Calculates base^power % mod for numbers that won't overflow longs
     public static long modPow(long base, long power, long mod) {
-        long result = 1;
-        while (power > 0) {
-            if (power % 2 == 1)
-                result = (result * base) % mod;
-            power >>= 1;
-            base = (base * base) % mod;
+        long result = base;
+        for (long l = Long.highestOneBit(power) >> 1; l != 0; l >>= 1) {
+            result = (result * result) % mod;
+            if ((power & l) != 0)
+                result *= base;
         }
-        return result;
+        return result % mod;
     }
 
     // Calculates base^2 % mod for especially large numbers that would overflow longs
     public static long squarePow(long base, long mod) {
-        return BigInteger.valueOf(base).modPow(BigInteger.TWO, BigInteger.valueOf(mod)).longValue();
+        return BigInteger.valueOf(base).pow(2).mod(BigInteger.valueOf(mod)).longValue();
     }
 
     // Returns whether the two inputs are coprime
@@ -119,8 +125,7 @@ public class IdonealSearch {
     }
 
     // Returns the list of sufficient witnesses for all possible primes considering N
-    public static long[] getWitnesses() {
-        long[] primes = new long[] {2, 3, 5, 7, 11, 13, 17, 19, 23};
+    public static int[] getWitnesses() {
         long maxPrime = 4 * N;
         long[] upperBounds = new long[] {2047, 1373653L, 25326001L, 3215031751L, 2152302898747L, 3474749660383L, 341550071728321L, 341550071728321L, 3825123056546413051L};
         for (int i = 0; i < primes.length; i++)
